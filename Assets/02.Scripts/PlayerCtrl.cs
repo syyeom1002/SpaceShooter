@@ -21,7 +21,11 @@ public class PlayerCtrl : MonoBehaviour
     private float initHp = 100.0f;
     //현재 생명값
     public float currHp;
-    
+
+    //델리게이트 선언
+    public delegate void PlayerDieHandler();
+    //이벤트 선언
+    public static event PlayerDieHandler OnPlayerDie;
     // Start is called before the first frame update
     void Start()
     {
@@ -107,6 +111,7 @@ public class PlayerCtrl : MonoBehaviour
 
             if (currHp <= 0.0f)
             {
+                Debug.Log("플레이어 죽음");
                 PlayerDie();
             }
         }
@@ -115,11 +120,13 @@ public class PlayerCtrl : MonoBehaviour
     {
         Debug.Log("플레이어 사망했습니다");
         //플레이어 사망하면 monster태그가 달린 모든 게임오브젝트들을 찾고
-        GameObject[] monsters = GameObject.FindGameObjectsWithTag("MONSTER");
+        //GameObject[] monsters = GameObject.FindGameObjectsWithTag("MONSTER");
         //모든 몬스터의 onPlayerDie 함수를 순차적으로 호출한다. 
-        foreach(GameObject monster in monsters)
-        {
-            monster.SendMessage("OnPlayDie", SendMessageOptions.DontRequireReceiver);
-        }
+        //foreach(GameObject monster in monsters)
+        //{
+        //monster 게임 오브젝트 스크립트에 OnPlayDie함수가 있다면 실행, SendMessageOptions.DontRequireReceiver은 호출한 함수가 없더라도 함수가 없다는 메시지를 반환받지 않겠다는 옵션, 빠른 실행을 위해 사용
+        //monster.SendMessage("OnPlayerDie", SendMessageOptions.DontRequireReceiver);
+        //}
+        OnPlayerDie();
     }
 }

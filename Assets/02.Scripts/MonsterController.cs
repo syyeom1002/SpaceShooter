@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -15,6 +16,7 @@ public class MonsterController : MonoBehaviour
     [SerializeField]
     private float traceRange = 10.0f;
     public bool isDie = false;
+    private int monsterHp = 100;
 
     private Transform monsterTr;
     private Transform playerTr;
@@ -24,8 +26,22 @@ public class MonsterController : MonoBehaviour
     private readonly int hashTrace = Animator.StringToHash("IsTrace");
     private readonly int hashAttack = Animator.StringToHash("IsAttack");
     private readonly int hashHit = Animator.StringToHash("Hit");
+    private readonly int hashPlayerDie = Animator.StringToHash("PlayerDie");
+    private readonly int hashSpeed = Animator.StringToHash("Speed");
+    private readonly int hashDie = Animator.StringToHash("Die");
 
     private GameObject bloodEffectPrefab;
+
+    //이벤트 연결
+    private void OnEnable()
+    {
+        PlayerCtrl.OnPlayerDie += this.OnPlayerDie;
+    }
+    //이벤트 해지
+    private void OnDisable()
+    {
+        PlayerCtrl.OnPlayerDie -= this.OnPlayerDie;
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -46,6 +62,9 @@ public class MonsterController : MonoBehaviour
         {
             //0.3초 동안 중지하는 동안 제어권을 메시지 루프에 양보
             yield return new WaitForSeconds(0.3f);
+
+            //죽었으면 여기서 코루틴 종료 
+            if (state == eState.DIE) yield break;
 
             float distance = Vector3.Distance(this.playerTr.position, this.monsterTr.position);
 
@@ -99,6 +118,12 @@ public class MonsterController : MonoBehaviour
             Vector3 pos = collision.GetContact(0).point;
             Quaternion rot = Quaternion.LookRotation(-collision.GetContact(0).normal);//맞은 부위의 법선벡터
             ShowBloodEffect(pos, rot);
+
+            this.monsterHp -= 10;
+            if (monsterHp <= 0)
+            {
+                state = eState.DIE;
+            }
         }
     }
     private void ShowBloodEffect(Vector3 pos,Quaternion rot)
@@ -138,6 +163,18 @@ public class MonsterController : MonoBehaviour
     }
     private void Die()
     {
+        isDie = true;
+        this.agent.isStopped = true;
+        anim.SetTrigger(hashDie);
+        //죽으면 총을 맞아도 혈흔 효과 일어나지 않음 
+        GetComponent<CapsuleCollider>().enabled = false;
+    }
+    void OnPlayerDie()
+    {
+        StopAllCoroutines();//몬스터의 상태를 체크하는 코루틴 함수를 모두 정지시킴
 
+        agent.isStopped = true;
+        anim.SetFloat(hashSpeed, Random.Range(0.8f, 1.2f));//몬스터 강남스타일 애니메이션 속도 조절
+        anim.SetTrigger(hashPlayerDie);
     }
 }
