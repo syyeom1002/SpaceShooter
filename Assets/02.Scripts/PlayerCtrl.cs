@@ -134,6 +134,7 @@ public class PlayerCtrl : MonoBehaviour
         //monster.SendMessage("OnPlayerDie", SendMessageOptions.DontRequireReceiver);
         //}
         OnPlayerDie();
+        GameManager.instance.IsGameOver = true;
     }
     private void DisPlayHealth()
     {

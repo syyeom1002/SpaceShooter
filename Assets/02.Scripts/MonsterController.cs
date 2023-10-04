@@ -33,9 +33,12 @@ public class MonsterController : MonoBehaviour
     private GameObject bloodEffectPrefab;
 
     //이벤트 연결
-    private void OnEnable()
+    private void OnEnable()//게임 오브젝트가 비활성화된 상태에서 다시 활성화될때마다 발생하는 유니티 콜백 함수
     {
         PlayerCtrl.OnPlayerDie += this.OnPlayerDie;
+
+        this.StartCoroutine(this.CheckMonsterState());
+        this.StartCoroutine(this.MonsterAction());
     }
     //이벤트 해지
     private void OnDisable()
@@ -43,7 +46,7 @@ public class MonsterController : MonoBehaviour
         PlayerCtrl.OnPlayerDie -= this.OnPlayerDie;
     }
     // Start is called before the first frame update
-    void Start()
+    void Awake()
     {
         this.monsterTr = this.gameObject.GetComponent<Transform>();
         this.playerTr = GameObject.FindWithTag("PLAYER").GetComponent<Transform>();
@@ -51,9 +54,6 @@ public class MonsterController : MonoBehaviour
         this.anim = this.GetComponent<Animator>();
         this.bloodEffectPrefab = Resources.Load<GameObject>("BloodSprayEffect");
         //agent.destination = playerTr.position;
-
-        this.StartCoroutine(this.CheckMonsterState());
-        this.StartCoroutine(this.MonsterAction());
     }
     //일정한 간격으로 몬스터 상태체크
     IEnumerator CheckMonsterState()
@@ -100,7 +100,20 @@ public class MonsterController : MonoBehaviour
                     this.Attack();
                     break;
                 case eState.DIE:
-                    this.Die();
+                    isDie = true;
+                    this.agent.isStopped = true;
+                    anim.SetTrigger(hashDie);
+                    //죽으면 총을 맞아도 혈흔 효과 일어나지 않음 
+                    GetComponent<CapsuleCollider>().enabled = false;
+
+                    //일정 시간 대기 후 오브젝트 풀링으로 환원
+                    yield return new WaitForSeconds(3.0f);
+                    monsterHp = 100;
+                    isDie = false;
+                    Debug.LogFormat("isDie{0},hp{1}", isDie,monsterHp);
+                    GetComponent<CapsuleCollider>().enabled = true;
+                    this.gameObject.SetActive(false);
+
                     break;
             }
             yield return new WaitForSeconds(0.3f);
@@ -161,14 +174,10 @@ public class MonsterController : MonoBehaviour
         anim.SetBool(hashTrace, true);
         anim.SetBool(hashAttack, false);
     }
-    private void Die()
-    {
-        isDie = true;
-        this.agent.isStopped = true;
-        anim.SetTrigger(hashDie);
-        //죽으면 총을 맞아도 혈흔 효과 일어나지 않음 
-        GetComponent<CapsuleCollider>().enabled = false;
-    }
+    //private IEnumerator Die()
+    //{
+        
+    //}
     void OnPlayerDie()
     {
         StopAllCoroutines();//몬스터의 상태를 체크하는 코루틴 함수를 모두 정지시킴
