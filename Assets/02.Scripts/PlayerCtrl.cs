@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerCtrl : MonoBehaviour
 {
@@ -21,7 +23,8 @@ public class PlayerCtrl : MonoBehaviour
     private float initHp = 100.0f;
     //현재 생명값
     public float currHp;
-
+    //Hpbar 연결할 변수
+    private Image hpBar;
     //델리게이트 선언
     public delegate void PlayerDieHandler();
     //이벤트 선언
@@ -29,6 +32,8 @@ public class PlayerCtrl : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        //null도 포함, 태그로 검색한 값이 null이 아니면 GetComponent함수 실행, null이면 null값을 반환/ 이걸 안쓰려면 if(오브젝트가!=null) GetComponent함수 실행 이렇게 써야함
+        hpBar = GameObject.FindGameObjectWithTag("HP_BAR")?.GetComponent<Image>();
         this.tr = GetComponent<Transform>();
         this.anim = this.GetComponent<Animation>();
         //방법1
@@ -107,6 +112,7 @@ public class PlayerCtrl : MonoBehaviour
         if (currHp >= 0.0f && other.CompareTag("PUNCH"))
         {
             currHp -= 10.0f;
+            DisPlayHealth();
             Debug.LogFormat($"hp:{currHp/this.initHp}");
 
             if (currHp <= 0.0f)
@@ -128,5 +134,9 @@ public class PlayerCtrl : MonoBehaviour
         //monster.SendMessage("OnPlayerDie", SendMessageOptions.DontRequireReceiver);
         //}
         OnPlayerDie();
+    }
+    private void DisPlayHealth()
+    {
+        hpBar.fillAmount = currHp / initHp;
     }
 }
