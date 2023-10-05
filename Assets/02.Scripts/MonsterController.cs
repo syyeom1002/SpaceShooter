@@ -10,12 +10,12 @@ public class MonsterController : MonoBehaviour
     {
         IDLE,TRACE,ATTACK,DIE
     }
-    public eState state;
+    public eState state=eState.IDLE;
     [SerializeField]
     private float attackRange = 2.0f;
     [SerializeField]
     private float traceRange = 10.0f;
-    public bool isDie = false;
+    public  bool isDie = false;
     private int monsterHp = 100;
 
     private Transform monsterTr;
@@ -40,21 +40,37 @@ public class MonsterController : MonoBehaviour
         this.StartCoroutine(this.CheckMonsterState());
         this.StartCoroutine(this.MonsterAction());
     }
+
     //이벤트 해지
     private void OnDisable()
     {
         PlayerCtrl.OnPlayerDie -= this.OnPlayerDie;
     }
+
     // Start is called before the first frame update
     void Awake()
     {
         this.monsterTr = this.gameObject.GetComponent<Transform>();
         this.playerTr = GameObject.FindWithTag("PLAYER").GetComponent<Transform>();
         this.agent = this.GetComponent<NavMeshAgent>();
+        //navMeshAgent 의 자동 회전 기능 비활성화
+        this.agent.updateRotation = false;
         this.anim = this.GetComponent<Animator>();
         this.bloodEffectPrefab = Resources.Load<GameObject>("BloodSprayEffect");
         //agent.destination = playerTr.position;
     }
+    private void Update()
+    {
+        if (agent.remainingDistance >= 2.0f)
+        {
+            //에이전트 이동 방향
+            Vector3 direction = agent.desiredVelocity;//내비게이션 시스템이 계산한 에이전트의 목표 속도와 방향,장애물 회피를 고려한 이동방향
+            Quaternion rot = Quaternion.LookRotation(direction);
+            monsterTr.rotation = Quaternion.Slerp(monsterTr.rotation, rot, Time.deltaTime * 10.0f);
+        }
+
+    }
+
     //일정한 간격으로 몬스터 상태체크
     IEnumerator CheckMonsterState()
     {
@@ -85,7 +101,7 @@ public class MonsterController : MonoBehaviour
 
     IEnumerator MonsterAction()
     {
-        while (!isDie)
+        while (isDie==false)
         {
             switch (state)
             {
@@ -100,20 +116,7 @@ public class MonsterController : MonoBehaviour
                     this.Attack();
                     break;
                 case eState.DIE:
-                    isDie = true;
-                    this.agent.isStopped = true;
-                    anim.SetTrigger(hashDie);
-                    //죽으면 총을 맞아도 혈흔 효과 일어나지 않음 
-                    GetComponent<CapsuleCollider>().enabled = false;
-
-                    //일정 시간 대기 후 오브젝트 풀링으로 환원
-                    yield return new WaitForSeconds(3.0f);
-                    monsterHp = 100;
-                    isDie = false;
-                    Debug.LogFormat("isDie{0},hp{1}", isDie,monsterHp);
-                    GetComponent<CapsuleCollider>().enabled = true;
-                    this.gameObject.SetActive(false);
-
+                    yield return this.Die();
                     break;
             }
             yield return new WaitForSeconds(0.3f);
@@ -125,25 +128,31 @@ public class MonsterController : MonoBehaviour
         if (collision.collider.CompareTag("BULLET"))
         {
             Destroy(collision.gameObject);
-            anim.SetTrigger(hashHit);
-
-            //총알 맞은 부위에 혈흔 이펙트 생성하기
-            Vector3 pos = collision.GetContact(0).point;
-            Quaternion rot = Quaternion.LookRotation(-collision.GetContact(0).normal);//맞은 부위의 법선벡터
-            ShowBloodEffect(pos, rot);
-
-            this.monsterHp -= 10;
-            if (monsterHp <= 0)
-            {
-                state = eState.DIE;
-            }
         }
     }
+    public void OnDamage(Vector3 pos, Vector3 normal)
+    {
+        anim.SetTrigger(hashHit);
+
+        //총알 맞은 부위에 혈흔 이펙트 생성하기
+        Quaternion rot = Quaternion.LookRotation(normal);//맞은 부위의 법선벡터
+        ShowBloodEffect(pos, rot);
+
+        this.monsterHp -= 20;
+        Debug.LogFormat("<color=lime>monster hp :{0}</color>", this.monsterHp);
+        if (monsterHp == 0)
+        {
+            state = eState.DIE;
+            GameManager.instance.DisplayScore(50);
+        }
+    }
+
     private void ShowBloodEffect(Vector3 pos,Quaternion rot)
     {
         GameObject bloodGo = Instantiate<GameObject>(bloodEffectPrefab, pos, rot, monsterTr);
         Destroy(bloodGo, 1.0f);
     }
+
     //거리 표시 원그리기
     private void OnDrawGizmos()
     {
@@ -158,15 +167,18 @@ public class MonsterController : MonoBehaviour
             GizmosExtensions.DrawWireArc(this.transform.position, this.transform.forward, 360, this.attackRange);
         }
     }
+
     private void Idle()
     {
         this.agent.isStopped = true;
         anim.SetBool(hashTrace, false);
     }
+
     private void Attack()
     {
         anim.SetBool(hashAttack, true);
     }
+
     private void Trace()
     {
         agent.SetDestination(this.playerTr.position);
@@ -174,10 +186,25 @@ public class MonsterController : MonoBehaviour
         anim.SetBool(hashTrace, true);
         anim.SetBool(hashAttack, false);
     }
-    //private IEnumerator Die()
-    //{
-        
-    //}
+
+    private IEnumerator Die()
+    {
+        isDie = true;
+        this.agent.isStopped = true;
+        anim.SetTrigger(hashDie);
+        //죽으면 총을 맞아도 혈흔 효과 일어나지 않음 
+        GetComponent<CapsuleCollider>().enabled = false;
+
+        //일정 시간 대기 후 오브젝트 풀링으로 환원
+        yield return new WaitForSeconds(3.0f);
+        //리셋
+        monsterHp = 100;
+        isDie = false;
+        Debug.LogFormat("isDie:{0},hp:{1}", isDie, monsterHp);
+        GetComponent<CapsuleCollider>().enabled = true;
+        this.gameObject.SetActive(false);
+    }
+
     void OnPlayerDie()
     {
         StopAllCoroutines();//몬스터의 상태를 체크하는 코루틴 함수를 모두 정지시킴

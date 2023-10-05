@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 
 public class UIManager : MonoBehaviour
 {
@@ -14,7 +15,7 @@ public class UIManager : MonoBehaviour
     private UnityAction action;
     private void Start()
     {
-        action = () => OnButtonClick(startButton.name);
+        action = () => OnStartClick();
         startButton.onClick.AddListener(action);
 
         optionButton.onClick.AddListener(delegate { OnButtonClick(optionButton.name); });
@@ -24,5 +25,10 @@ public class UIManager : MonoBehaviour
     public void OnButtonClick(string message)
     {
         Debug.LogFormat($"click button:{message}");
+    }
+    public void OnStartClick()
+    {
+        SceneManager.LoadScene("Level_01");
+        SceneManager.LoadScene("Play", LoadSceneMode.Additive);//기존씬을 삭제하지 않고 추가해서 새로운 씬을 로드한다.
     }
 }
